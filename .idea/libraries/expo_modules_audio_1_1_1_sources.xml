@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="expo.modules.audio-1.1.1-sources">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/frontend/node_modules/expo-audio/local-maven-repo/expo/modules/audio/expo.modules.audio/1.1.1/expo.modules.audio-1.1.1-sources.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

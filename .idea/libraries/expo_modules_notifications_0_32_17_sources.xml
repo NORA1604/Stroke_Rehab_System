@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="expo.modules.notifications-0.32.17-sources">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/frontend/node_modules/expo-notifications/local-maven-repo/host/exp/exponent/expo.modules.notifications/0.32.17/expo.modules.notifications-0.32.17-sources.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
