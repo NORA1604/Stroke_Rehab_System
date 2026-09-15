@@ -11,8 +11,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/f849b6b3-11ba-4588-b042-8dead0124f07",
-      "checkAutomatically": "NEVER"
+      "url": "https://u.expo.dev/489e559d-3f76-4432-bb50-38fe53af7013"
     },
     "splash": {
       "image": "./assets/theramotion-splash.png",
@@ -42,14 +41,12 @@
       "expo-video",
       "expo-audio",
       "expo-font",
-      "expo-notifications",
-      "expo-asset"
+      "expo-notifications"
     ],
     "extra": {
       "eas": {
-        "projectId": "f849b6b3-11ba-4588-b042-8dead0124f07"
+        "projectId": "489e559d-3f76-4432-bb50-38fe53af7013"
       }
-    },
-    "owner": "nigelagojo"
+    }
   }
 }

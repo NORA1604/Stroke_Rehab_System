@@ -156,7 +156,6 @@ def _headers() -> Dict[str, str]:
     """Return headers required for Supabase REST requests (service role)."""
     key = _get_service_role_key()
     return {
-        "User-Agent": _BROWSER_USER_AGENT,
         "apikey": key,
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",

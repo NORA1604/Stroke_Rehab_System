@@ -217,8 +217,11 @@ const usePatientStore = create((set, get) => ({
             .gt('latest_form_score', 0)
             .order('created_at', { ascending: false })
             .limit(50);
-          if (error) throw error;
-          return data;
+            console.log('[HISTORY] Supabase returned:', data);
+            console.log('[HISTORY] Supabase error:', error);
+
+            if (error) throw error;
+            return data;
         },
       });
 

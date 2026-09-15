@@ -4,28 +4,13 @@ import * as SecureStore from 'expo-secure-store';
 
 // This adapter tells Supabase to securely save the user's login token
 // using React Native's native secure storage, rather than web cookies.
-const ExpoSecureStoreAdapter = { // Connects Supabase Auth to Expo SecureStore.
-  getItem: (key) => { 
-    // Retrieves a stored value.
-    console.log("[SecureStore] getItem key:", JSON.stringify(key)); 
-    // Logs the key for debugging.
-    return SecureStore.getItemAsync(key); 
-    // Gets the value from SecureStore.
-  },
-  setItem: (key, value) => { 
-    // Saves a value.
-    console.log("[SecureStore] setItem key:", JSON.stringify(key)); 
-    // Logs the key for debugging.
-    return SecureStore.setItemAsync(key, value); 
-    // Stores the value securely.
-  },
-  removeItem: (key) => { 
-    // Deletes a stored value.
-    console.log("[SecureStore] removeItem key:", JSON.stringify(key)); 
-    // Logs the key for debugging.
-    return SecureStore.deleteItemAsync(key); 
-    // Removes the value from SecureStore.
-  },
+const ExpoSecureStoreAdapter = {
+  //get item gets the users token to verify if its logged on or not 
+  getItem: (key) => SecureStore.getItemAsync(key),
+  //sets the token after logging in
+  setItem: (key, value) => SecureStore.setItemAsync(key, value),
+  //removes the token after logging out
+  removeItem: (key) => SecureStore.deleteItemAsync(key),
 };
 
 
