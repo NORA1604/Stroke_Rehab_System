@@ -3,7 +3,7 @@ import { supabase } from "../services/supabase"
 
 // Create a singleton Axios instance used throughout the app.
 export const instance = axios.create({
-    baseURL: "https://forget-default-sperm-postage.trycloudflare.com",
+    baseURL: "https://stroke-rehab-system-tce4.onrender.com",
 })
 
 // Auth interceptor — attaches the Supabase JWT as a Bearer token on
