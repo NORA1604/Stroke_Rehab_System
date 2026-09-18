@@ -19,7 +19,7 @@ const QUESTIONS = [
   {
     id: 'months_in_recovery',
     title: 'How many months are you in recovery?',
-    options: ['1 Month', '2 months', '3 months', '4-6 months'],
+    options: ['1 Month', '2 months', '3 months', '4 months', '5 months', '6 months', '7+ months'],
   },
   {
     id: 'affected_area',
