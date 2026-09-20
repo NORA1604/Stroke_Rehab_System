@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import * as Speech from 'expo-speech';
 import { ChevronLeft } from 'lucide-react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import CameraComponent from '../components/exercise/CameraComponent';
@@ -36,10 +37,38 @@ const ExerciseScreen = ({ navigation }) => {
     checkSession();
   }, []);
 
+  // Speak the exercise instructions whenever a new exercise starts.
+  useEffect(() => {
+    if (!currentExercise || session.isResting) return;
+
+    // Stop anything that may still be speaking from the previous exercise.
+    Speech.stop();
+
+    const exerciseName = currentExercise.name || '';
+    const instruction =
+      currentExercise.instructions ||
+      currentExercise.instruction ||
+      '';
+
+    const speechText = instruction
+      ? `${exerciseName}. ${instruction}`
+      : exerciseName;
+
+    Speech.speak(speechText, {
+      language: 'en-US',
+      rate: 0.9,
+      pitch: 1.0,
+    });
+
+    return () => {
+      Speech.stop();
+    };
+  }, [currentExercise?.id, session.isResting]);
+
   // Keeps track of whether we're allowed to leave this screen without asking for confirmation.
   // Set to true only when the user finishes a workout or taps the intended "End Workout" button.
   const allowLeaveRef = useRef(false);
-
+  
   // Saves the exercise score when the user finishes it (or the timer runs out),
   // and switches the view to the Rest screen.
   const handleExerciseComplete = useCallback((payload) => {
