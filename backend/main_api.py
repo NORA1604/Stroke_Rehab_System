@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 import os
-import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -30,14 +29,10 @@ async def lifespan(_app: FastAPI):
             "Refusing to start."
         )
 
-    # Warm the LSTM in a background thread at startup so the first
-    # end-of-exercise classification doesn't pay model-load latency (which was
-    # overrunning the mobile client's request timeout). Off the main thread so
-    # it never delays 'Application startup complete'.
-    from core.neural_network import warmup_model
-    threading.Thread(target=warmup_model, daemon=True).start()
-    yield
-
+    # LSTM models are loaded lazily when an exercise actually needs them.
+    # Do not warm up all models at startup because Render's 512 MB memory
+    # limit can be exceeded when combined with MediaPipe/TFLite.
+    pass
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
