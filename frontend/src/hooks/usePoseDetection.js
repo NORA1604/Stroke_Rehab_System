@@ -73,12 +73,34 @@ const usePoseDetection = () => {
   }, []);
 
   const startDetection = useCallback(async (
-    exerciseType = '',
-    affectedSide = 'right',
-    onResult = null,
-    onClose = null,
-    exerciseSlug = '',
+  exerciseType = '',
+  affectedSide = 'right',
+  onResult = null,
+  onClose = null,
+  exerciseSlug = '',
   ) => {
+    // Make sure any previous connection is retired before creating
+    // another WebSocket. This prevents old exercise connections from
+    // remaining alive and consuming Render memory/connections.
+    connectionIdRef.current += 1;
+    stopHeartbeat();
+
+    const previousWs = wsRef.current;
+    wsRef.current = null;
+
+    if (previousWs) {
+      try {
+        if (
+          previousWs.readyState === WebSocket.OPEN ||
+          previousWs.readyState === WebSocket.CONNECTING
+        ) {
+          previousWs.close();
+        }
+      } catch (_) {
+        // Already closed or closing.
+      }
+    }
+
     onResultRef.current = onResult;
     onCloseRef.current = onClose;
     authedRef.current = false;
@@ -262,18 +284,33 @@ const usePoseDetection = () => {
 
   // Closes the socket and clears callbacks. Safe to call multiple times.
   const stopDetection = useCallback(() => {
-    // Retire the current connection id so its handlers go silent.
+    // Retire the current connection so all handlers from this
+    // exercise become inactive.
     connectionIdRef.current += 1;
+
     stopHeartbeat();
+
     setIsDetecting(false);
     setIsModelReady(false);
+
     onResultRef.current = null;
     onCloseRef.current = null;
     authedRef.current = false;
+
     const ws = wsRef.current;
+    wsRef.current = null;
+
     if (ws) {
-      wsRef.current = null;
-      try { ws.close(); } catch (_) { /* already closed */ }
+      try {
+        if (
+          ws.readyState === WebSocket.OPEN ||
+          ws.readyState === WebSocket.CONNECTING
+        ) {
+          ws.close();
+        }
+      } catch (_) {
+        // Already closed or closing.
+      }
     }
   }, [stopHeartbeat]);
 

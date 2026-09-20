@@ -204,9 +204,8 @@ const useCamera = (exercise, { onComplete } = {}) => {
   const captureAndSend = useCallback(async () => {
     if (!timerRef.current || !cameraRef.current) return;
     if (inFlightRef.current) return;
-    // Skip while paused (BreakScreen showing) so we're not feeding
-    // frames into a session the patient is resting from.
     if (pausedRef.current) return;
+
     try {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.1,
@@ -214,39 +213,94 @@ const useCamera = (exercise, { onComplete } = {}) => {
         shutterSound: false,
         skipProcessing: true,
       });
-      if (!timerRef.current || pausedRef.current) return;
+
+      // Exercise may have ended while the camera was capturing.
+      if (!timerRef.current || pausedRef.current) {
+        return;
+      }
+
+      const base64 = photo?.base64;
+
+      // Release the photo object reference as soon as possible.
+      // We only need its base64 payload.
+      if (!base64) {
+        inFlightRef.current = false;
+
+        if (retryRef.current) {
+          clearTimeout(retryRef.current);
+        }
+
+        retryRef.current = setTimeout(() => {
+          retryRef.current = null;
+
+          if (timerRef.current && !pausedRef.current) {
+            captureAndSend();
+          }
+        }, 200);
+
+        return;
+      }
 
       frameCountRef.current += 1;
 
-      const result = sendFrameBase64(photo?.base64);
+      const result = sendFrameBase64(base64);
+
       if (!result?.ok) {
         inFlightRef.current = false;
+
         if (result?.reason === 'not_open') {
-          if (retryRef.current) clearTimeout(retryRef.current);
+          if (retryRef.current) {
+            clearTimeout(retryRef.current);
+          }
+
           retryRef.current = setTimeout(() => {
             retryRef.current = null;
-            if (timerRef.current && !pausedRef.current) captureAndSend();
+
+            if (timerRef.current && !pausedRef.current) {
+              captureAndSend();
+            }
           }, 200);
+
           return;
         }
+
         return;
       }
 
       inFlightRef.current = true;
-      if (watchdogRef.current) clearTimeout(watchdogRef.current);
+
+      if (watchdogRef.current) {
+        clearTimeout(watchdogRef.current);
+      }
+
       watchdogRef.current = setTimeout(() => {
         watchdogRef.current = null;
+
+        // Backend did not answer this frame quickly enough.
+        // Unlock the capture loop so one slow frame cannot permanently
+        // stop realtime tracking.
         if (inFlightRef.current) {
           inFlightRef.current = false;
-          if (timerRef.current && !pausedRef.current) captureAndSend();
+
+          if (timerRef.current && !pausedRef.current) {
+            captureAndSend();
+          }
         }
       }, 2000);
+
     } catch (_) {
       inFlightRef.current = false;
-      if (retryRef.current) clearTimeout(retryRef.current);
+
+      if (retryRef.current) {
+        clearTimeout(retryRef.current);
+      }
+
       retryRef.current = setTimeout(() => {
         retryRef.current = null;
-        if (timerRef.current && !pausedRef.current) captureAndSend();
+
+        if (timerRef.current && !pausedRef.current) {
+          captureAndSend();
+        }
       }, 200);
     }
   }, [sendFrameBase64]);
@@ -419,30 +473,78 @@ const useCamera = (exercise, { onComplete } = {}) => {
   // Exit the BreakScreen and begin the next set. Called by the
   // BreakScreen's "Start Next Set" button.
   const startNextSet = useCallback(() => {
-    if (!isBetweenSets) return;
-    const nextIndex = currentSetIndex + 1;
-    if (nextIndex >= sets.length) {
-      // Defensive: shouldn't happen (BreakScreen wouldn't render on
-      // the last set), but if it does, finish cleanly instead of
-      // running off the end of the sets array.
-      finishExercise('finish');
-      return;
+  if (!isBetweenSets) return;
+
+  const nextIndex = currentSetIndex + 1;
+
+  if (nextIndex >= sets.length) {
+    // Defensive: shouldn't happen, but finish cleanly.
+    finishExercise('finish');
+    return;
+  }
+
+  // Make sure no previous frame is still blocking the new set.
+  inFlightRef.current = false;
+
+  // Cancel any leftover watchdog/retry from the previous set.
+  if (watchdogRef.current) {
+    clearTimeout(watchdogRef.current);
+    watchdogRef.current = null;
+  }
+
+  if (retryRef.current) {
+    clearTimeout(retryRef.current);
+    retryRef.current = null;
+  }
+
+  const nextSet = sets[nextIndex];
+
+  setCurrentSetIndex(nextIndex);
+  setIsBetweenSets(false);
+
+  pausedRef.current = false;
+
+  beginSetTimers(nextSet);
+
+  // Give React/camera state a moment to leave the break screen
+  // before requesting the first frame of the next set.
+  requestAnimationFrame(() => {
+    if (!pausedRef.current && timerRef.current) {
+      captureAndSend();
     }
-    const nextSet = sets[nextIndex];
-    setCurrentSetIndex(nextIndex);
-    setIsBetweenSets(false);
-    pausedRef.current = false;
-    beginSetTimers(nextSet);
-    // Restart the capture loop.
-    captureAndSend();
-  }, [isBetweenSets, currentSetIndex, sets, beginSetTimers, captureAndSend, finishExercise]);
+  });
+  }, [
+    isBetweenSets,
+    currentSetIndex,
+    sets,
+    beginSetTimers,
+    captureAndSend,
+    finishExercise,
+  ]);
 
   // Initial start: from BeforeYouStart's "I'm ready" button. Connects
   // the WS, begins set 0, kicks the frame loop.
   const startExercise = useCallback(() => {
+    // Completely reset frame-loop state before starting a new exercise.
     finishingRef.current = false;
     inFlightRef.current = false;
     pausedRef.current = false;
+
+    if (watchdogRef.current) {
+      clearTimeout(watchdogRef.current);
+      watchdogRef.current = null;
+    }
+
+    if (retryRef.current) {
+      clearTimeout(retryRef.current);
+      retryRef.current = null;
+    }
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
     setIsExercising(true);
     setIsBetweenSets(false);
     setCurrentSetIndex(0);

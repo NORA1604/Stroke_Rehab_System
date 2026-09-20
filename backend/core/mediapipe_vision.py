@@ -169,7 +169,7 @@ def extract_pose_keypoints_from_frame(frame: Any, pose_estimator: Optional[Any] 
     else:
         with mp.solutions.pose.Pose(
             static_image_mode=False,
-            model_complexity=1,
+            model_complexity=0,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5,
         ) as pose:
@@ -211,7 +211,7 @@ def extract_sequence_from_video(
 
     with mp.solutions.pose.Pose(
         static_image_mode=False,
-        model_complexity=1,
+        model_complexity=0,
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5,
     ) as pose:

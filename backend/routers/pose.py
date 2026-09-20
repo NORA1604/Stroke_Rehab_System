@@ -35,7 +35,7 @@ _WS_CLOSE_AT_CAPACITY = 4503  # "service unavailable" intent, app-defined range
 
 # Hard cap on concurrent /ws/pose connections, protecting the shared host
 # machine's CPU (not a dedicated server) - set with margin below the measured saturation point (~15 concurrent, 2026-08-21 ramp test).
-_MAX_CONCURRENT_CONNECTIONS = 8
+_MAX_CONCURRENT_CONNECTIONS = 2
 
 # How long we wait for the client's auth message after accept(). The
 # mobile client sends it within a few hundred ms in normal conditions;
@@ -143,6 +143,15 @@ def _run_pose_with_lock(pose_instance: Any, lock: threading.Lock, data: bytes) -
     with lock:
         return estimate_pose_from_image_bytes(data, pose_instance=pose_instance)
 
+def _close_pose_instance(pose_instance: Any) -> None:
+    """Safely release the MediaPipe Pose instance."""
+    if pose_instance is None:
+        return
+
+    try:
+        pose_instance.close()
+    except Exception:
+        pass
 
 @router.websocket("/ws/pose")
 async def pose_ws(websocket: WebSocket) -> None:
@@ -373,7 +382,7 @@ async def _pose_ws_admitted(websocket: WebSocket) -> None:
             # moment the capture window closes → store it off-thread.
             if recorder.add_frame(data, bool(keypoints)):
                 store_clip_async(recorder)
-
+                
             if not keypoints:
                 await websocket.send_json({
                     "score": 0,
@@ -411,17 +420,10 @@ async def _pose_ws_admitted(websocket: WebSocket) -> None:
             pass
         return
     finally:
-        # Flush a short evidence clip if the exercise ended before the
-        # capture window filled (patient finished a quick set / dropped
-        # the socket). Skips cleanly when nothing was buffered or the
-        # clip already stored mid-stream.
+    # Finalize and hand the recorded clip to the background uploader.
         if recorder.enabled and not recorder.done and recorder.has_frames():
             recorder.finalize()
             store_clip_async(recorder)
 
-        # Tear down the per-connection MediaPipe Pose instance so its
-        # C++ graph is freed promptly.
-        try:
-            pose_instance.close()
-        except Exception:
-            pass
+            # Explicitly release MediaPipe native resources.
+            _close_pose_instance(pose_instance)
