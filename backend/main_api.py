@@ -1,11 +1,6 @@
 from pathlib import Path
-
 from dotenv import load_dotenv
-# Anchored to this file's own folder, not the current working directory - a
-# bare load_dotenv() only finds backend/.env if you happen to launch uvicorn
-# FROM backend/. Run it from anywhere else (repo root, etc.) and it silently
-# finds nothing, leaving SUPABASE_URL genuinely unset in this process even
-# though the file itself is correct.
+
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 import os
@@ -16,12 +11,6 @@ from fastapi import FastAPI
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # SUPABASE_URL is now load-bearing for auth (JWT verification fetches
-    # the project's JWKS from it), not just optional DB/storage config -
-    # fail startup outright instead of only discovering this on the first
-    # request via core.auth.AuthConfigError. load_dotenv() above is
-    # CWD-independent, so if this still fires, backend/.env itself is
-    # missing or missing this key - not a wrong-launch-directory issue.
     if not os.getenv("SUPABASE_URL", "").strip():
         raise RuntimeError(
             "SUPABASE_URL is empty - required to fetch the JWKS for JWT "
@@ -29,10 +18,11 @@ async def lifespan(_app: FastAPI):
             "Refusing to start."
         )
 
-    # LSTM models are loaded lazily when an exercise actually needs them.
-    # Do not warm up all models at startup because Render's 512 MB memory
-    # limit can be exceeded when combined with MediaPipe/TFLite.
-    pass
+    # LSTM models are loaded lazily when needed.
+    yield
+
+
+from slowapi import _rate_limit_exceeded_handler
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
