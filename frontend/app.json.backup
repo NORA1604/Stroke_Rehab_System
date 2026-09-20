@@ -11,7 +11,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/5b0bcecf-4e5f-48db-a750-7a03e362700f"
+      "url": "https://u.expo.dev/489e559d-3f76-4432-bb50-38fe53af7013"
     },
     "splash": {
       "image": "./assets/theramotion-splash.png",
@@ -46,9 +46,8 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "5b0bcecf-4e5f-48db-a750-7a03e362700f"
+        "projectId": "489e559d-3f76-4432-bb50-38fe53af7013"
       }
-    },
-    "owner": "nigelagojos-team"
+    }
   }
 }
