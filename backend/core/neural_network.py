@@ -7,6 +7,9 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 import torch
 from torch import nn
 
+torch.set_num_threads(1)
+torch.set_num_interop_threads(1)
+
 from core.mediapipe_vision import _normalize_keypoints_to_hip_center
 
 logger = logging.getLogger("uvicorn.error")
@@ -257,45 +260,12 @@ def _load_model_for(exercise_type: str) -> Dict[str, Any]:
 
 
 def warmup_model() -> None:
-    """Load every per-exercise model and run one throwaway inference each so
-    the first real request doesn't pay model-load + CUDA-init latency. Safe
-    to call at startup in a background thread; any failure is swallowed
-    (inference falls back to the rule-based path exactly as before)."""
-    try:
-        # Import lazily to avoid any import cycle at module load.
-        from core.exercise_catalog import LSTM_SUPPORTED_EXERCISE_TYPES
+    """Disabled for low-memory deployments.
 
-        dummy = [{"keypoints": [0.0] * KEYPOINT_DIM} for _ in range(DEFAULT_SEQUENCE_LEN)]
-        # Warm ONLY the exercises live requests will actually route to the LSTM.
-        # Callers gate on is_lstm_supported(), so warming every lstm_*.pth on
-        # disk would load weights no request ever uses — dropped/gated
-        # exercises (e.g. a leftover lstm_knee_extension.pth) or stale
-        # checkpoints. A supported exercise with no per-exercise file warms the
-        # global fallback path via classify_form_sequence, so that stays covered.
-        slugs = sorted(LSTM_SUPPORTED_EXERCISE_TYPES)
-
-        # Fail LOUDLY (in logs) when a required per-exercise checkpoint is absent:
-        # its .pth is gitignored-except in .gitignore and must be deployed, but a
-        # fresh/other machine could still miss it and would then silently serve the
-        # global model. _GLOBAL_FALLBACK_OK is currently empty — every supported
-        # exercise (including sit_to_stand) requires its own checkpoint.
-        for slug in slugs:
-            if slug in _GLOBAL_FALLBACK_OK:
-                continue
-            path = MODELS_DIR / f"lstm_{slug}.pth"
-            if not (path.exists() and path.stat().st_size > 0):
-                logger.warning(
-                    "Required per-exercise model MISSING: %s - '%s' will fall back "
-                    "to the global model and MISCLASSIFY. Place the checkpoint in %s.",
-                    path.name, slug, MODELS_DIR)
-
-        for slug in (slugs or ["warmup"]):
-            classify_form_sequence(slug, dummy)
-    except Exception as exc:
-        # Non-fatal: inference falls back to the rule-based path, but log the
-        # cause (missing weights, CUDA OOM, corrupted file) so a silently
-        # degraded classifier is diagnosable instead of invisible.
-        logger.warning("LSTM warmup failed; classification will use rule-based fallback: %s", exc)
+    Models are loaded lazily by classify_form_sequence() only when
+    the corresponding exercise is actually used.
+    """
+    return
 
 
 def classify_form_sequence(exercise_type: str, sequence: Iterable[Any]) -> Dict[str, Any]:
