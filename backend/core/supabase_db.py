@@ -21,6 +21,9 @@ import shutil
 import subprocess
 from typing import Any, Dict, Optional
 from urllib import error, parse, request
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 # UUID format used by patient_id and other primary keys — validated at
 # every external entry point so we never splice unsanitised text into a
@@ -612,19 +615,29 @@ def fetch_patient_history(patient_id: str, limit: int = 50) -> list:
 
 
 def get_patient_by_id(patient_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch a patient record by ID from the patients table.
-    
-    Returns the patient dict or None if not found.
-    Tries direct Postgres, then docker exec, then REST.
-    """
-    postgres_row = _postgres_fetch_one("patients", "id", patient_id)
-    if postgres_row:
-        return postgres_row
+    """Fetch a patient record by ID from the patients table."""
 
-    docker_row = _docker_postgres_fetch_one("patients", "id", patient_id)
-    if docker_row:
-        return docker_row
+    logger.info("Looking up patient_id=%s", patient_id)
 
+    # 1. Direct PostgreSQL
+    try:
+        postgres_row = _postgres_fetch_one("patients", "id", patient_id)
+        logger.info("Direct PostgreSQL result: %s", bool(postgres_row))
+        if postgres_row:
+            return postgres_row
+    except Exception as exc:
+        logger.warning("Direct PostgreSQL lookup failed: %s", exc)
+
+    # 2. Docker PostgreSQL
+    try:
+        docker_row = _docker_postgres_fetch_one("patients", "id", patient_id)
+        logger.info("Docker PostgreSQL result: %s", bool(docker_row))
+        if docker_row:
+            return docker_row
+    except Exception as exc:
+        logger.warning("Docker PostgreSQL lookup failed: %s", exc)
+
+    # 3. Supabase REST
     url = _rest_url("patients") + f"?id=eq.{patient_id}&select=*"
     req = request.Request(url, headers=_headers(), method="GET")
 
@@ -632,8 +645,21 @@ def get_patient_by_id(patient_id: str) -> Optional[Dict[str, Any]]:
         with request.urlopen(req, timeout=10) as response:
             body = response.read().decode("utf-8")
             data = json.loads(body) if body else []
+
+            logger.info(
+                "Supabase REST patient lookup: status=%s rows=%s",
+                response.status,
+                len(data),
+            )
+
             return data[0] if data else None
-    except Exception:
+
+    except Exception as exc:
+        logger.exception(
+            "Supabase REST patient lookup failed for patient_id=%s: %s",
+            patient_id,
+            exc,
+        )
         return None
 
 
