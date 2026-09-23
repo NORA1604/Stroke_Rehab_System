@@ -1,4 +1,4 @@
-# Stroke Rehab System
+# Stroke Rehab System ver. NA
 
 Mobile-Based Computer Vision and Machine Learning application for stroke rehabilitation.
 
